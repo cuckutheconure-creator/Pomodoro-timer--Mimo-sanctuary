@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mimo Sanctuary | Pomodoro Timer</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #09090e;
+            --accent: #fab387;
+            --mimo-color: #fab387; 
+            --glass: rgba(26, 27, 38, 0.4);
+            --border: rgba(255, 255, 255, 0.1);
+            --glow-strength: 0px;
+            --sticky-bg: #1e1e2e;
+            --sticky-text: #ffffff;
+        }
+
+        body {
+            background: var(--bg);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            color: #cdd6f4;
+            font-family: 'VT323', monospace;
+            margin: 0; height: 100vh;
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            overflow: hidden;
+            transition: background 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* --- THE FLOW --- */
+        .flow-container { 
+            display: flex; 
+            align-items: flex-end; 
+            gap: 8px; 
+            padding-bottom: 20px; 
+            height: 100px; /* Gives it room to dance */
+            width: 100%;
+            margin-top: auto; /* Pushes it to the bottom of sidebar */
+        }
+        .flow-bar { 
+            flex: 1; 
+            background: var(--accent); 
+            height: 10%; 
+            border-radius: 2px; 
+            transition: 0.5s; 
+            opacity: 0.3; 
+        }
+        body.studying .flow-bar { animation: flowDance 0.7s infinite alternate ease-in-out; opacity: 0.8; }
+        
+        /* Staggered Delays for Wave Effect */
+        .flow-bar:nth-child(1) { animation-delay: 0.0s; }
+        .flow-bar:nth-child(2) { animation-delay: 0.15s; }
+        .flow-bar:nth-child(3) { animation-delay: 0.3s; }
+        .flow-bar:nth-child(4) { animation-delay: 0.45s; }
+        .flow-bar:nth-child(5) { animation-delay: 0.2s; }
+        .flow-bar:nth-child(6) { animation-delay: 0.1s; }
+
+        @keyframes flowDance { from { height: 10%; } to { height: 80%; } }
+
+        /* --- Header Section --- */
+        .header-container {
+            position: absolute; top: 30px; display: flex; flex-direction: column;
+            align-items: center; width: 100%; pointer-events: none; z-index: 5; transition: 0.5s ease;
+        }
+        body.studying .header-container { opacity: 0.3; }
+
+        .topic-header {
+            font-size: 3rem; letter-spacing: 10px; color: var(--accent);
+            opacity: 0.9; text-transform: uppercase; margin: 0;
+            animation: topicBounce 4s infinite ease-in-out; transition: color 0.5s;
+        }
+
+        .sub-header {
+            font-size: 1.5rem; letter-spacing: 5px; color: #fff; opacity: 0.5;
+            text-transform: uppercase; margin-top: -5px; animation: topicBounce 4s infinite ease-in-out 0.2s;
+        }
+
+        @keyframes topicBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+        #starfield { position: fixed; inset: -50px; background-image: radial-gradient(1px 1px at 20px 30px, #fff, rgba(0,0,0,0)), radial-gradient(1.5px 1.5px at 100px 150px, #fff, rgba(0,0,0,0)); background-size: 300px 300px; opacity: 0.2; z-index: 0; pointer-events: none; }
+        .vignette { position: fixed; inset: 0; background: radial-gradient(circle at 50% 50%, transparent 20%, rgba(0,0,0,0.7) 100%); pointer-events: none; z-index: 1; }
+        #focus-pulse { position: fixed; inset: 0; box-shadow: inset 0 0 var(--glow-strength) var(--accent); pointer-events: none; z-index: 2; transition: 1.5s ease; opacity: 0.3; }
+
+        /* --- Sidebars --- */
+        .sidebar {
+            position: absolute; top: 0; width: 340px; height: 100vh;
+            backdrop-filter: blur(20px); display: flex; flex-direction: column;
+            padding: 40px 25px; box-sizing: border-box; z-index: 10; 
+            transition: opacity 0.5s ease, backdrop-filter 0.5s ease, background 0.5s ease;
+        }
+        .left-sidebar { left: 0; border-right: 1px solid var(--border); background: linear-gradient(to right, var(--glass), transparent); }
+        .right-sidebar { right: 0; border-left: 1px solid var(--border); background: linear-gradient(to left, var(--glass), transparent); }
+        
+        body.studying .sidebar { opacity: 0.15; backdrop-filter: blur(0px); background: transparent; }
+        body.studying .sidebar:hover { opacity: 1; backdrop-filter: blur(20px); background: var(--glass); }
+
+        h3 { margin: 0 0 15px 0; font-size: 1.8rem; color: var(--accent); letter-spacing: 3px; border-bottom: 2px solid var(--border); text-transform: uppercase; }
+        .config-box { background: rgba(0,0,0,0.4); border-radius: 12px; border: 1px solid var(--border); padding: 15px; margin-bottom: 20px; }
+        .input-mini { width: 100%; background: rgba(0,0,0,0.5); border: 1px solid var(--border); color: white; padding: 10px; font-family: 'VT323'; font-size: 1.2rem; border-radius: 6px; outline: none; box-sizing: border-box; }
+        .restore-btn { margin-top: 8px; font-size: 0.8rem; color: var(--accent); text-decoration: underline; cursor: pointer; display: block; border: none; background: none; font-family: inherit; }
+
+        /* --- MIMO --- */
+        #flame {
+            width: 70px; height: 85px; background: var(--mimo-color); border-radius: 50% 50% 20% 20%;
+            position: relative; animation: breathe 2s infinite ease-in-out; box-shadow: 0 0 60px var(--mimo-color);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s;
+        }
+        .eye-row { display: flex; gap: 12px; margin-top: -10px; }
+        .eye { width: 6px; height: 6px; background: #11111b; border-radius: 50%; transition: 0.3s; }
+        body.studying .eye { height: 2px; border-radius: 0; width: 8px; margin-top: 5px; }
+        .mouth { width: 12px; height: 6px; border-bottom: 2px solid #11111b; border-radius: 0 0 10px 10px; margin-top: 5px; transition: 0.3s; }
+        body.studying .mouth { opacity: 0; }
+        .book { position: absolute; bottom: 8px; width: 32px; height: 22px; background: #fff; border: 2px solid #11111b; border-radius: 2px; display: none; }
+        body.studying .book { display: block; animation: bookSlide 0.5s forwards ease-out; }
+        
+        @keyframes breathe { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-10px) scale(1.05); } }
+        @keyframes bookSlide { from { transform: translateY(15px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* --- Mini Game --- */
+        #game-area { width: 300px; height: 80px; border-bottom: 2px solid var(--accent); position: relative; display: none; margin-bottom: 20px; overflow: hidden; background: rgba(0,0,0,0.2); border-radius: 8px 8px 0 0; }
+        #game-mimo { width: 25px; height: 30px; background: var(--mimo-color); position: absolute; bottom: 0; left: 20px; border-radius: 4px; transition: bottom 0.2s ease-out; }
+        #obstacle { width: 15px; height: 15px; background: #f38ba8; position: absolute; bottom: 0; right: -20px; }
+        #btn-game { background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 5px 15px; cursor: pointer; font-family: 'VT323'; margin-bottom: 10px; display: none; border-radius: 4px; }
+
+        /* --- Timer & Controls --- */
+        .mode-btns { display: flex; gap: 20px; margin-bottom: 10px; }
+        .m-btn { background: none; border: none; font-family: 'VT323'; font-size: 1.6rem; cursor: pointer; transition: 0.3s; }
+        .timer-display { font-size: 12rem; color: var(--accent); line-height: 0.8; text-shadow: 0 0 30px rgba(0,0,0,0.5); transition: 0.5s; margin: 10px 0; }
+        .ctrl-group { display: flex; gap: 15px; align-items: center; }
+        #start-btn { background: transparent; border: 3px solid var(--accent); color: var(--accent); font-family: 'VT323'; font-size: 2.2rem; padding: 12px 50px; cursor: pointer; border-radius: 60px; transition: 0.3s; outline: none; }
+        #reset-btn { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.4); font-family: 'VT323'; font-size: 1.2rem; padding: 10px 20px; cursor: pointer; border-radius: 30px; transition: 0.3s; display: none; }
+        body.has-started #reset-btn { display: block; }
+
+        .fs-btn { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.5); border: 1px solid var(--border); color: #fff; padding: 8px 15px; font-family: 'VT323'; cursor: pointer; border-radius: 4px; z-index: 100; opacity: 0.5; transition: 0.3s; }
+        .stats-float { position: absolute; top: 40px; right: 360px; background: var(--glass); padding: 10px 20px; border-radius: 12px; font-size: 1.4rem; border: 1px solid var(--border); transition: 0.5s; }
+        body.studying .stats-float { opacity: 0.2; }
+
+        .task-item { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; }
+        .footer-credit { position: absolute; bottom: 20px; right: 20px; font-size: 0.8rem; opacity: 0.3; pointer-events: none; letter-spacing: 2px; }
+    </style>
+</head>
+<body onmousemove="parallax(event)">
+
+    <div class="header-container">
+        <h1 class="topic-header">Mimo Sanctuary</h1>
+        <h2 class="sub-header">Pomodoro Timer</h2>
+    </div>
+
+    <button class="fs-btn" onclick="toggleFullScreen()">FULLSCREEN [F]</button>
+
+    <div id="starfield"></div>
+    <div id="focus-pulse"></div>
+    <div class="vignette"></div>
+
+    <div class="sidebar left-sidebar">
+        <h3>SANCTUARY</h3>
+        <div class="config-box">
+            <label style="color:var(--accent)">STUDY MINUTES</label>
+            <input type="number" id="custom-min" value="25" min="1" class="input-mini" onchange="updateCustomTime(this.value)">
+        </div>
+        <div class="config-box">
+            <label style="color:var(--accent)">AUDIO VIBE</label>
+            <select id="audio-selector" onchange="changeTrack(this.value)" class="input-mini">
+                <option value="">🔇 Silence</option>
+                <option value="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" selected>🎧 Deep Focus</option>
+                <option value="https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Ketsa/Raising_Frequecy/Ketsa_-_04_-_Warm_Lo-fi_Beats.mp3">🎧 Lofi Beats</option>
+            </select>
+        </div>
+        <h3>GOALS</h3>
+        <input type="text" id="todo-input" placeholder="+ Add Goal" class="input-mini">
+        <div id="todo-list" style="margin-top:15px; overflow-y:auto; flex:1;"></div>
+    </div>
+
+    <div class="sidebar right-sidebar">
+        <h3>CUSTOMIZE</h3>
+        <div class="config-box">
+            <label style="color:var(--accent)">MIMO COLOR</label>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <div style="width:25px; height:25px; background:#fab387; cursor:pointer; border-radius:50%" onclick="setGlobalColor('#fab387')"></div>
+                <div style="width:25px; height:25px; background:#f38ba8; cursor:pointer; border-radius:50%" onclick="setGlobalColor('#f38ba8')"></div>
+                <div style="width:25px; height:25px; background:#a6e3a1; cursor:pointer; border-radius:50%" onclick="setGlobalColor('#a6e3a1')"></div>
+                <div style="width:25px; height:25px; background:#89b4fa; cursor:pointer; border-radius:50%" onclick="setGlobalColor('#89b4fa')"></div>
+            </div>
+        </div>
+        <div class="config-box">
+            <label style="color:var(--accent)">CUSTOM BACKGROUND</label>
+            <input type="text" id="bg-input" placeholder="Paste Image URL" class="input-mini" onchange="setCustomBG(this.value)">
+            <button class="restore-btn" onclick="restoreOriginalBG()">Restore Original BG</button>
+        </div>
+        <h3>NOTES</h3>
+        <div style="background:var(--sticky-bg); padding:15px; border-radius:8px; border-left:4px solid var(--accent); margin-bottom: 20px;">
+            <textarea id="notes-area" style="width:100%; height:120px; background:transparent; border:none; color:#fff; font-family:inherit; outline:none; resize:none;" placeholder="Thoughts..." oninput="saveNotes(this.value)"></textarea>
+        </div>
+
+        <div class="flow-container">
+            <div class="flow-bar"></div>
+            <div class="flow-bar"></div>
+            <div class="flow-bar"></div>
+            <div class="flow-bar"></div>
+            <div class="flow-bar"></div>
+            <div class="flow-bar"></div>
+        </div>
+    </div>
+
+    <div class="stats-float">LVL <span id="lvl">1</span> | XP <span id="xp">0</span></div>
+
+    <div class="zen-center" style="display:flex; flex-direction:column; align-items:center; z-index:5;">
+        <div class="mode-btns">
+            <button class="m-btn" id="focus-mode-btn" style="color:var(--accent)" onclick="setMode('focus')">FOCUS</button>
+            <button class="m-btn" id="rest-mode-btn" style="color:#4e4f6a" onclick="setMode('rest')">REST</button>
+        </div>
+
+        <button id="btn-game" onclick="startGame()">VOID JUMP [SPACE]</button>
+        <div id="game-area">
+            <div id="game-mimo"></div>
+            <div id="obstacle"></div>
+        </div>
+
+        <div id="mimo-container">
+            <div id="flame">
+                <div class="eye-row"><div class="eye"></div><div class="eye"></div></div>
+                <div class="mouth"></div>
+                <div class="book"></div>
+            </div>
+            <div id="mimo-text" style="font-size: 2rem; letter-spacing: 5px; color: #fff; margin-top: 10px; text-align:center;">MIMO</div>
+        </div>
+        <div class="timer-display" id="timer">25:00</div>
+        <div class="ctrl-group">
+            <button id="start-btn" onclick="toggleTimer()">START</button>
+            <button id="reset-btn" onclick="resetTimer()">RESET</button>
+        </div>
+    </div>
+
+    <div class="footer-credit">MIMO SANCTUARY V1.0</div>
+    <audio id="bg-audio" loop></audio>
+
+    <script>
+        let timeLeft, isRunning = false, timerId = null, xp = 0;
+        let currentMode = 'focus', userAccent = '#fab387', isGaming = false; 
+        const audio = document.getElementById('bg-audio');
+
+        function updateUI() {
+            const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
+            const timeStr = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+            document.getElementById('timer').textContent = timeStr;
+            document.title = `(${timeStr}) Mimo Sanctuary`;
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            if(!isRunning) {
+                if(mode === 'focus') timeLeft = document.getElementById('custom-min').value * 60;
+                else timeLeft = 5 * 60;
+            }
+            if(mode === 'focus') {
+                applyColors(userAccent);
+                document.getElementById('focus-mode-btn').style.opacity = "1";
+                document.getElementById('rest-mode-btn').style.opacity = "0.4";
+                document.getElementById('btn-game').style.display = 'none';
+                document.getElementById('game-area').style.display = 'none';
+                isGaming = false;
+            } else {
+                applyColors('#89b4fa'); 
+                document.getElementById('focus-mode-btn').style.opacity = "0.4";
+                document.getElementById('rest-mode-btn').style.opacity = "1";
+                document.getElementById('btn-game').style.display = 'block';
+            }
+            updateUI();
+        }
+
+        function applyColors(color) {
+            document.documentElement.style.setProperty('--accent', color);
+            document.documentElement.style.setProperty('--mimo-color', color);
+        }
+
+        function toggleTimer() {
+            if(isRunning) { stopTimer(); } 
+            else {
+                isRunning = true; document.body.classList.add('studying', 'has-started');
+                document.getElementById('start-btn').innerText = "PAUSE";
+                document.documentElement.style.setProperty('--glow-strength', '80px');
+                if(!audio.src) audio.src = document.getElementById('audio-selector').value;
+                if(audio.src) audio.play().catch(e => console.log("Audio needed"));
+
+                timerId = setInterval(() => {
+                    if(timeLeft > 0) { 
+                        timeLeft--; updateUI(); 
+                        if(timeLeft % 60 === 0) { xp += 5; saveAndDisplayStats(); }
+                    } else { 
+                        stopTimer(); 
+                        setMode(currentMode === 'focus' ? 'rest' : 'focus');
+                    }
+                }, 1000);
+            }
+        }
+
+        function stopTimer() {
+            isRunning = false; clearInterval(timerId);
+            document.body.classList.remove('studying');
+            document.getElementById('start-btn').innerText = "RESUME";
+            document.documentElement.style.setProperty('--glow-strength', '0px');
+            audio.pause();
+        }
+
+        function resetTimer() {
+            stopTimer();
+            document.body.classList.remove('has-started');
+            document.getElementById('start-btn').innerText = "START";
+            timeLeft = (currentMode === 'focus') ? document.getElementById('custom-min').value * 60 : 5 * 60;
+            updateUI();
+        }
+
+        function updateCustomTime(v) { if(currentMode === 'focus' && !isRunning) { timeLeft = v * 60; updateUI(); } }
+        function changeTrack(src) { audio.src = src; audio.load(); if(isRunning && src) audio.play(); }
+        function setGlobalColor(c) { userAccent = c; if(currentMode === 'focus') applyColors(c); localStorage.setItem('mimo-color', c); }
+        function setCustomBG(url) { document.body.style.backgroundImage = `url('${url}')`; localStorage.setItem('mimo-bg', url); }
+        function restoreOriginalBG() { document.body.style.backgroundImage = 'none'; localStorage.removeItem('mimo-bg'); }
+        function toggleFullScreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+        function saveNotes(val) { localStorage.setItem('mimo-notes', val); }
+        
+        function saveAndDisplayStats() {
+            document.getElementById('xp').innerText = xp;
+            document.getElementById('lvl').innerText = Math.floor(xp / 100) + 1;
+            localStorage.setItem('mimo-xp', xp);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+            if (e.code === 'Space') { if (isGaming) gameJump(); else toggleTimer(); }
+            if (e.key.toLowerCase() === 'r') resetTimer();
+            if (e.key.toLowerCase() === 'f') toggleFullScreen();
+        });
+
+        function startGame() {
+            isGaming = true;
+            document.getElementById('game-area').style.display = 'block';
+            document.getElementById('btn-game').style.display = 'none';
+            const obs = document.getElementById('obstacle');
+            let pos = -20;
+            const gameLoop = setInterval(() => {
+                if(!isGaming || currentMode === 'focus') { clearInterval(gameLoop); isGaming = false; return; }
+                pos += 6;
+                obs.style.right = pos + 'px';
+                if(pos > 320) pos = -20;
+                let mimoJump = parseInt(window.getComputedStyle(document.getElementById('game-mimo')).getPropertyValue("bottom"));
+                if(pos > 240 && pos < 275 && mimoJump < 25) { alert("Mimo hit a block!"); pos = -20; }
+            }, 20);
+        }
+
+        function gameJump() {
+            const gm = document.getElementById('game-mimo');
+            if(isGaming && (gm.style.bottom === '0px' || gm.style.bottom === '')) {
+                gm.style.bottom = '55px';
+                setTimeout(() => { gm.style.bottom = '0px'; }, 350);
+            }
+        }
+
+        window.onload = () => {
+            timeLeft = 25 * 60;
+            xp = parseInt(localStorage.getItem('mimo-xp')) || 0;
+            saveAndDisplayStats();
+            if(localStorage.getItem('mimo-notes')) document.getElementById('notes-area').value = localStorage.getItem('mimo-notes');
+            if(localStorage.getItem('mimo-color')) userAccent = localStorage.getItem('mimo-color');
+            if(localStorage.getItem('mimo-bg')) setCustomBG(localStorage.getItem('mimo-bg'));
+            setMode('focus');
+            const savedTasks = JSON.parse(localStorage.getItem('mimo-tasks')) || [];
+            savedTasks.forEach(task => addTaskToUI(task));
+        };
+
+        function addTaskToUI(text) {
+            const div = document.createElement('div');
+            div.className = 'task-item';
+            div.innerHTML = `<input type="checkbox" onclick="removeTask(this)"> <span>${text}</span>`;
+            document.getElementById('todo-list').appendChild(div);
+        }
+        function removeTask(el) { el.parentElement.remove(); xp += 10; saveAndDisplayStats(); updateSavedTasks(); }
+        function updateSavedTasks() {
+            const tasks = Array.from(document.querySelectorAll('.task-item span')).map(s => s.innerText);
+            localStorage.setItem('mimo-tasks', JSON.stringify(tasks));
+        }
+        document.getElementById('todo-input').onkeypress = (e) => {
+            if(e.key === 'Enter' && e.target.value.trim()) { addTaskToUI(e.target.value); updateSavedTasks(); e.target.value = ""; }
+        };
+        function parallax(e) {
+            const x = (window.innerWidth - e.pageX * 2) / 100;
+            const y = (window.innerHeight - e.pageY * 2) / 100;
+            document.getElementById('starfield').style.transform = `translate(${x}px, ${y}px)`;
+        }
+    </script>
+</body>
+</html>
